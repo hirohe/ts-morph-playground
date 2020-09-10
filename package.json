@@ -1,0 +1,26 @@
+{
+  "name": "ts-morph-playground",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "clean": "rimraf lib && rimraf build",
+    "watch": "tsc -w",
+    "start": "tsc"
+  },
+  "author": "hirohe",
+  "license": "MIT",
+  "dependencies": {
+    "@types/js-yaml": "^3.12.5",
+    "@types/node": "^14.6.2",
+    "@types/prettier": "^2.1.0",
+    "axios": "^0.20.0",
+    "case-anything": "^1.1.2",
+    "js-yaml": "^3.14.0",
+    "prettier": "^2.1.1",
+    "rimraf": "^3.0.2",
+    "swagger-to-ts": "^1.0.8",
+    "ts-morph": "^8.1.0",
+    "typescript": "~4.0.2"
+  }
+}
