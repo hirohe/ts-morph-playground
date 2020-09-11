@@ -32,4 +32,4 @@ export const ReservedKeywords: string[] = [
   'while',
   'with',
   'yield',
-]
+];

@@ -16,12 +16,12 @@ export interface OpenAPI3 {
 }
 
 export type OpenAPI3Type =
-  | "array"
-  | "boolean"
-  | "integer"
-  | "number"
-  | "object"
-  | "string";
+  | 'array'
+  | 'boolean'
+  | 'integer'
+  | 'number'
+  | 'object'
+  | 'string';
 
 export type OpenAPI3TextReference = { $ref: string };
 
@@ -98,7 +98,7 @@ export interface PathItem {
 }
 
 export function isOpenAPI3TextReference(data: any): data is OpenAPI3TextReference {
-  return data && typeof (data as OpenAPI3TextReference).$ref === 'string'
+  return data && typeof (data as OpenAPI3TextReference).$ref === 'string';
 }
 
 export function isParameterObject(data: any): data is ParameterObject {
