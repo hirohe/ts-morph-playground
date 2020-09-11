@@ -97,8 +97,10 @@ export interface PathItem {
   trace?: Operation;
 }
 
+export type HttpMethod = keyof Omit<PathItem, 'description'>;
+
 export function isOpenAPI3TextReference(data: any): data is OpenAPI3TextReference {
-  return data && typeof (data as OpenAPI3TextReference).$ref === 'string';
+  return data && typeof data.$ref === 'string';
 }
 
 export function isParameterObject(data: any): data is ParameterObject {

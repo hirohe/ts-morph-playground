@@ -1,6 +1,6 @@
 import {
-  FunctionDeclarationStructure, ImportDeclaration, ImportSpecifierStructure,
-  InterfaceDeclarationStructure, JSDocableNodeStructure, JSDocSignature, JSDocStructure,
+  FunctionDeclarationStructure, ImportSpecifierStructure,
+  InterfaceDeclarationStructure, JSDocStructure,
   OptionalKind, ParameterDeclarationStructure,
   Project,
   SourceFile,
@@ -19,14 +19,12 @@ import {
   OpenAPI3SchemaObject, OpenAPI3TextReference,
   OpenAPI3Type, Operation,
   PathItem,
-  ResponseObject,
+  HttpMethod,
 } from './types/OpenAPI3';
 import { ReservedKeywords } from './utils/keywords';
-import { doc } from 'prettier';
 
-
-const HttpMethodsWithoutBody: (keyof PathItem)[] = ['get', 'delete', 'options', 'head'];
-const HttpMethodsWithBody: (keyof PathItem)[] = ['post', 'put', 'patch'];
+const HttpMethodsWithoutBody: HttpMethod[] = ['get', 'delete', 'options', 'head'];
+const HttpMethodsWithBody: HttpMethod[] = ['post', 'put', 'patch'];
 
 function escapeKeywords(s: string) {
   if (ReservedKeywords.some(k => k === s)) {
@@ -217,7 +215,7 @@ async function main() {
     serviceFile.saveSync();
   }
 
-  await fs.promises.readFile(path.join(openapi3TestDir, 'sz12345-hrms.yaml').toString(), 'utf8').then(content => {
+  await fs.promises.readFile(path.join(openapi3TestDir, 'petstore.yaml').toString(), 'utf8').then(content => {
     const openapi3 = yamlToJson(content) as OpenAPI3;
 
     // components
