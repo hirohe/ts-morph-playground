@@ -64,9 +64,11 @@ export interface RequestBodyObject {
   required: boolean;
 }
 
+export type ParameterPlaceIn = 'query' | 'header' | 'path' | 'cookie';
+
 export interface ParameterObject {
   name: string;
-  in: string | 'query' | 'header' | 'path' | 'cookie';
+  in: string | ParameterPlaceIn;
   description?: string;
   required: boolean;
   schema: OpenAPI3SchemaObject | OpenAPI3TextReference;
@@ -105,4 +107,8 @@ export function isOpenAPI3TextReference(data: any): data is OpenAPI3TextReferenc
 
 export function isParameterObject(data: any): data is ParameterObject {
   return data && typeof data.name === 'string' && typeof data.in === 'string';
+}
+
+export function isBasicTypeSchemaObject(data: any): boolean {
+  return data && !['object', 'array'].includes(data.type);
 }

@@ -1,7 +1,7 @@
 import {
   FunctionDeclarationStructure, ImportSpecifierStructure,
   InterfaceDeclarationStructure, JSDocStructure,
-  OptionalKind, ParameterDeclarationStructure,
+  OptionalKind,
   Project,
   SourceFile,
   SourceFileCreateOptions,
@@ -19,9 +19,11 @@ import {
   OpenAPI3SchemaObject, OpenAPI3TextReference,
   OpenAPI3Type, Operation,
   PathItem,
-  HttpMethod,
+  HttpMethod, isBasicTypeSchemaObject,
 } from './types/OpenAPI3';
 import { ReservedKeywords } from './utils/keywords';
+import { RequestFunctionDefinition, RequestParameter } from './types/common';
+import { generateRequestFunctionBody } from './axios-request';
 
 const HttpMethodsWithoutBody: HttpMethod[] = ['get', 'delete', 'options', 'head'];
 const HttpMethodsWithBody: HttpMethod[] = ['post', 'put', 'patch'];
@@ -76,10 +78,13 @@ function schemaObjectAsTypeName(schema: OpenAPI3SchemaObject | OpenAPI3TextRefer
 
 function addTypeImportToFile(typeImport: OptionalKind<ImportSpecifierStructure>, sourceFile: SourceFile, typeFile: SourceFile) {
   // try to prevent duplicate import
-  const theImportDeclaration = sourceFile.getImportDeclaration(importDeclaration => importDeclaration.getModuleSpecifierSourceFile()?.getFilePath() === typeFile.getFilePath());
-  // TODO there is problem
-  if (theImportDeclaration && theImportDeclaration.getNamedImports().every(named => named.getName() !== typeImport.name)) {
-    theImportDeclaration.addNamedImport(typeImport);
+  const theImportDeclaration = sourceFile.getImportDeclaration(importDeclaration => {
+    return importDeclaration.getModuleSpecifierSourceFile()?.getFilePath() === typeFile.getFilePath();
+  });
+  if (theImportDeclaration) {
+    if (theImportDeclaration.getNamedImports().every(named => named.getName() !== typeImport.name)) {
+      theImportDeclaration.addNamedImport(typeImport);
+    }
   } else {
     sourceFile.addImportDeclaration({ namedImports: [typeImport], moduleSpecifier: '' }).setModuleSpecifier(typeFile);
   }
@@ -103,7 +108,6 @@ async function main() {
   fs.mkdirSync(path.join(buildDir, 'services'), { recursive: true });
   fs.copyFileSync(path.join(templateDir, 'request.ts'), path.join(buildDir, 'services', 'request.ts'));
   const requestFile = servicesDir.addSourceFileAtPath('request.ts');
-  console.log(requestFile);
 
   const typeFile = typesDir.createSourceFile('common.ts', {
     kind: StructureKind.SourceFile,
@@ -117,14 +121,13 @@ async function main() {
     ],
   };
 
-  function processPathItem(pathString: string, pathItem: PathItem, method: keyof PathItem, serviceFileByTag: { [tag: string]: SourceFile }, commonServiceFile: SourceFile) {
+  function processPathItem(pathString: string, pathItem: PathItem, method: keyof Omit<PathItem, 'description'>, serviceFileByTag: { [tag: string]: SourceFile }, commonServiceFile: SourceFile) {
     const operation = pathItem[method] as Operation;
     if (operation === undefined) return;
 
     let serviceFile: SourceFile;
     if (operation.tags.length > 0) {
       const tag = operation.tags[0];
-      console.log(`take first tag [${tag}] as group name`);
       if (serviceFileByTag[tag]) {
         serviceFile = serviceFileByTag[tag];
       } else {
@@ -142,7 +145,9 @@ async function main() {
     if (operation.responses['200']) {
       const successResponse = operation.responses['200'];
       if (isOpenAPI3TextReference(successResponse)) {
-        // TODO
+        // TODO how is this looks like ?
+        console.log('------ SPECIAL CASE ------');
+        console.log('successResponse', successResponse);
       } else {
         if (successResponse.content) {
           for (const contentType in successResponse.content) {
@@ -156,6 +161,22 @@ async function main() {
                   const typeImport: OptionalKind<ImportSpecifierStructure> = { name: returnType };
                   addTypeImportToFile(typeImport, serviceFile, typeFile);
                 }
+              } else {
+                if (contentMediaType.schema.type === 'array' && isOpenAPI3TextReference(contentMediaType.schema.items)) {
+                  const refPaths = parseRefText(contentMediaType.schema.items.$ref);
+                  if (refPaths.length > 0) {
+                    const theReturnType = normalizeSchemaName(refPaths[refPaths.length - 1]);
+                    const typeImport: OptionalKind<ImportSpecifierStructure> = { name: theReturnType };
+                    returnType = theReturnType + '[]';
+                    addTypeImportToFile(typeImport, serviceFile, typeFile);
+                  }
+                } else if (isBasicTypeSchemaObject(contentMediaType.schema)) {
+                  returnType = contentMediaType.schema.type;
+                } else {
+                  // TODO
+                  console.log('------ SPECIAL CASE ------');
+                  console.log('contentMediaType.schema', contentMediaType.schema);
+                }
               }
             }
           }
@@ -163,14 +184,12 @@ async function main() {
       }
     }
 
-    const parameters: OptionalKind<ParameterDeclarationStructure>[] = [];
+    const parameters: RequestParameter[] = [];
     if (operation.parameters && operation.parameters.length > 0) {
       operation.parameters.forEach(parameter => {
         if (isParameterObject(parameter)) {
-          // parameter.in
-        }
-        if (isParameterObject(parameter)) {
           parameters.push({
+            in: parameter.in,
             name: parameter.name,
             type: schemaObjectAsTypeName(parameter.schema) || 'any',
             hasQuestionToken: !parameter.required,
@@ -178,6 +197,9 @@ async function main() {
         }
       });
     }
+    parameters.sort((a, b) => {
+      return (b.hasQuestionToken ? -1 : 0) - (a.hasQuestionToken ? -1 : 0);
+    });
 
     const docs: OptionalKind<JSDocStructure>[] = [];
     if (operation.summary) {
@@ -194,20 +216,17 @@ async function main() {
       docs,
     };
 
-    const requestReturnType = returnType ? `<${returnType}>` : '';
-
-    let requestPath = '';
-    if (/[{}]+/.test(pathString)) {
-      requestPath = `\`${pathString.replace('{', '${')}\``;
-    } else {
-      requestPath = `'${pathString}'`;
-    }
-    console.log(requestPath);
     try {
+      const requestDefinition: RequestFunctionDefinition = {
+        name: escapeKeywords(operation.operationId),
+        method,
+        path: pathString,
+        parameters,
+        resultType: returnType,
+      };
+
       serviceFile.addFunction(operationFunctionStructure).setBodyText(writer => {
-        writer.write(`return request.${method}${requestReturnType}(${requestPath})`);
-        // writer.newLine();
-        writer.write('.then(res => res.data)');
+        generateRequestFunctionBody(requestDefinition, writer);
       });
     } catch (e) {
       console.log('error in addFunction', e);
