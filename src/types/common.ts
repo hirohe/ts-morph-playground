@@ -1,8 +1,8 @@
 import { OptionalKind, ParameterDeclarationStructure } from 'ts-morph';
 import { HttpMethod } from './OpenAPI3';
 
-const HttpMethodsWithoutBody: HttpMethod[] = ['get', 'delete', 'options', 'head'];
-const HttpMethodsWithBody: HttpMethod[] = ['post', 'put', 'patch'];
+export const HttpMethodsWithoutBody: HttpMethod[] = ['get', 'delete', 'options', 'head'];
+export const HttpMethodsWithBody: HttpMethod[] = ['post', 'put', 'patch'];
 
 export interface RequestParameter extends OptionalKind<ParameterDeclarationStructure> {
   in?: string;

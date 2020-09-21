@@ -10,7 +10,7 @@ import {
 } from 'ts-morph';
 import path from 'path';
 import fs from 'fs';
-import { kebabCase } from 'case-anything';
+import { kebabCase, camelCase } from 'case-anything';
 import { yamlToJson } from './utils/yaml';
 import {
   isOpenAPI3TextReference, isParameterObject, MediaTypeObject,
@@ -197,6 +197,32 @@ async function main() {
         }
       });
     }
+
+    // request body
+    function textReferenceToRequestBodyParameter(ref: string) {
+      const requestBodyTypeName = parseRefText(ref).slice(-1)[0];
+      return {
+        in: 'body',
+        name: camelCase(requestBodyTypeName),
+        type: requestBodyTypeName,
+        hasQuestionToken: false,
+      } as RequestParameter;
+    }
+    if (operation.requestBody) {
+      if (isOpenAPI3TextReference(operation.requestBody)) {
+        // add to parameters
+        parameters.push(textReferenceToRequestBodyParameter(operation.requestBody.$ref));
+      } else {
+        Object.entries(operation.requestBody.content).forEach(([contentType, content]) => {
+          if (isJSONContentType(contentType)) {
+            if (isOpenAPI3TextReference(content.schema)) {
+              parameters.push(textReferenceToRequestBodyParameter(content.schema.$ref));
+            }
+          }
+        })
+      }
+    }
+
     parameters.sort((a, b) => {
       return (b.hasQuestionToken ? -1 : 0) - (a.hasQuestionToken ? -1 : 0);
     });

@@ -1,5 +1,5 @@
 import { CodeBlockWriter } from 'ts-morph';
-import { RequestFunctionDefinition } from './types/common';
+import { HttpMethodsWithBody, RequestFunctionDefinition } from './types/common';
 
 export function generateRequestFunctionBody(requestDefinition: RequestFunctionDefinition, writer: CodeBlockWriter): void {
   const {
@@ -35,6 +35,15 @@ export function generateRequestFunctionBody(requestDefinition: RequestFunctionDe
     config = '{ params }';
   }
 
-  writer.write(`return request.${method}${requestReturnType}(${requestPath}${config ? `, ${config}`: ''})`);
+  let bodyParam = '';
+  if (HttpMethodsWithBody.includes(method)) {
+    // check from parameters
+    const bodyParamName = parameters.find(p => p.in === 'body')?.name;
+    if (bodyParamName) {
+      bodyParam = bodyParamName;
+    }
+  }
+
+  writer.write(`return request.${method}${requestReturnType}(${requestPath}${bodyParam ? `, ${bodyParam}` : ''}${config ? `, ${config}` : ''})`);
   writer.write('.then(res => res.data);');
 }
