@@ -28,6 +28,10 @@ import { generateRequestFunctionBody } from './axios-request';
 const HttpMethodsWithoutBody: HttpMethod[] = ['get', 'delete', 'options', 'head'];
 const HttpMethodsWithBody: HttpMethod[] = ['post', 'put', 'patch'];
 
+function isJSONContentType(s: string) {
+  return /application\/.*json/.test(s);
+}
+
 function escapeKeywords(s: string) {
   if (ReservedKeywords.some(k => k === s)) {
     // TODO
@@ -152,7 +156,7 @@ async function main() {
         if (successResponse.content) {
           for (const contentType in successResponse.content) {
             // TODO if contentType kind of json structure
-            if (/application\/.*json/.test(contentType)) {
+            if (isJSONContentType(contentType)) {
               const contentMediaType = successResponse.content[contentType] as MediaTypeObject;
               if (isOpenAPI3TextReference(contentMediaType.schema)) {
                 const refPaths = parseRefText(contentMediaType.schema.$ref);
@@ -260,7 +264,7 @@ async function main() {
     serviceFile.saveSync();
   }
 
-  await fs.promises.readFile(path.join(openapi3TestDir, 'petstore.yaml').toString(), 'utf8').then(content => {
+  await fs.promises.readFile(path.join(openapi3TestDir, 'api-docs.yaml').toString(), 'utf8').then(content => {
     const openapi3 = yamlToJson(content) as OpenAPI3;
 
     // components
