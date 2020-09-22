@@ -11,7 +11,7 @@ export function generateRequestFunctionBody(requestDefinition: RequestFunctionDe
 
   let requestPath = '';
   if (/[{}]+/.test(path)) {
-    requestPath = `\`${path.replace('{', '${')}\``;
+    requestPath = `\`${path.replace(/{/g, '${')}\``;
   } else {
     requestPath = `'${path}'`;
   }
@@ -45,5 +45,6 @@ export function generateRequestFunctionBody(requestDefinition: RequestFunctionDe
   }
 
   writer.write(`return request.${method}${requestReturnType}(${requestPath}${bodyParam ? `, ${bodyParam}` : ''}${config ? `, ${config}` : ''})`);
-  writer.write('.then(res => res.data);');
+
+  if (resultType) writer.write('.then(res => res.data);');
 }
