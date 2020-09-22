@@ -194,7 +194,7 @@ async function main() {
         if (isParameterObject(parameter)) {
           parameters.push({
             in: parameter.in,
-            name: parameter.name,
+            name: normalizeSchemaName(parameter.name),
             type: schemaObjectAsTypeName(parameter.schema) || 'any',
             hasQuestionToken: !parameter.required,
           });
@@ -204,7 +204,8 @@ async function main() {
 
     // request body
     function textReferenceToRequestBodyParameter(ref: string) {
-      const requestBodyTypeName = parseRefText(ref).slice(-1)[0];
+      const requestBodyTypeName = normalizeSchemaName(parseRefText(ref).slice(-1)[0]);
+      addTypeImportToFile({ name: requestBodyTypeName }, serviceFile, typeFile);
       return {
         in: 'body',
         name: camelCase(requestBodyTypeName),
@@ -223,7 +224,7 @@ async function main() {
               parameters.push(textReferenceToRequestBodyParameter(content.schema.$ref));
             }
           }
-        })
+        });
       }
     }
 
@@ -310,20 +311,34 @@ async function main() {
           const property = schema.properties[propertyName] as OpenAPI3SchemaObject | OpenAPI3Reference;
           if ((property as OpenAPI3SchemaObject).type) {
             const schemaProperty = property as OpenAPI3SchemaObject;
+            const docs = schemaProperty.description ? [{ description: schemaProperty.description }] : undefined;
             if (schemaProperty.type === 'array' && schemaProperty.items) {
               if ((schemaProperty.items as any).$ref) {
                 const typeName = parseRefText((schemaProperty.items as any).$ref).slice(-1)[0];
                 interfaceProperties.push({
                   name: propertyName,
                   type: normalizeSchemaName(typeName) + '[]',
-                  docs: schemaProperty.description ? [{ description: schemaProperty.description }] : undefined,
+                  docs,
+                });
+              } else if (isBasicTypeSchemaObject(schemaProperty.items)) {
+                interfaceProperties.push({
+                  name: propertyName,
+                  type: (schemaProperty.items as OpenAPI3SchemaObject).type + '[]',
+                  docs,
+                });
+              } else {
+                // TODO
+                interfaceProperties.push({
+                  name: propertyName,
+                  type: 'any',
+                  docs,
                 });
               }
             } else {
               interfaceProperties.push({
                 name: propertyName,
                 type: openAPI3TypeToTypeName(schemaProperty.type),
-                docs: schemaProperty.description ? [{ description: schemaProperty.description }] : undefined,
+                docs,
               });
             }
           } else {
